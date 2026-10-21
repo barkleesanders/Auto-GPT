@@ -23,15 +23,10 @@ def create_chat_message(role, content):
     return {"role": role, "content": content}
 
 
-
 # TODO: Change debug from hardcode to argument
 def chat_with_ai(
-        prompt,
-        user_input,
-        full_message_history,
-        permanent_memory,
-        token_limit,
-        debug=False):
+    prompt, user_input, full_message_history, permanent_memory, token_limit, debug=False
+):
     while True:
         try:
             """
@@ -47,16 +42,16 @@ def chat_with_ai(
             Returns:
             str: The AI's response.
             """
-            model = cfg.fast_llm_model # TODO: Change model from hardcode to argument
+            model = cfg.fast_llm_model  # TODO: Change model from hardcode to argument
             # Reserve 1000 tokens for the response
             if debug:
                 print(f"Token limit: {token_limit}")
             send_token_limit = token_limit - 1000
 
             current_context = [
-                create_chat_message(
-                    "system", prompt), create_chat_message(
-                    "system", f"Permanent memory: {permanent_memory}")]                
+                create_chat_message("system", prompt),
+                create_chat_message("system", f"Permanent memory: {permanent_memory}"),
+            ]
 
             # Add messages from the full message history until we reach the token limit
             next_message_to_add_index = len(full_message_history) - 1
@@ -64,23 +59,31 @@ def chat_with_ai(
             insertion_index = len(current_context)
 
             # Count the currently used tokens
-            current_tokens_used = token_counter.count_message_tokens(current_context, model)
-            current_tokens_used += token_counter.count_message_tokens([create_chat_message("user", user_input)], model) # Account for user input (appended later)
+            current_tokens_used = token_counter.count_message_tokens(
+                current_context, model
+            )
+            current_tokens_used += token_counter.count_message_tokens(
+                [create_chat_message("user", user_input)], model
+            )  # Account for user input (appended later)
 
             while next_message_to_add_index >= 0:
                 # print (f"CURRENT TOKENS USED: {current_tokens_used}")
                 message_to_add = full_message_history[next_message_to_add_index]
 
-                tokens_to_add = token_counter.count_message_tokens([message_to_add], model)
+                tokens_to_add = token_counter.count_message_tokens(
+                    [message_to_add], model
+                )
                 if current_tokens_used + tokens_to_add > send_token_limit:
                     break
 
                 # Add the most recent message to the start of the current context, after the two system prompts.
-                current_context.insert(insertion_index, full_message_history[next_message_to_add_index])
+                current_context.insert(
+                    insertion_index, full_message_history[next_message_to_add_index]
+                )
 
                 # Count the currently used tokens
                 current_tokens_used += tokens_to_add
-                
+
                 # Move to the next most recent message in the full message history
                 next_message_to_add_index -= 1
 
@@ -101,8 +104,7 @@ def chat_with_ai(
                     # Skip printing the prompt
                     if message["role"] == "system" and message["content"] == prompt:
                         continue
-                    print(
-                        f"{message['role'].capitalize()}: {message['content']}")
+                    print(f"{message['role'].capitalize()}: {message['content']}")
                     print()
                 print("----------- END OF CONTEXT ----------------")
 
@@ -114,12 +116,10 @@ def chat_with_ai(
             )
 
             # Update full message history
+            full_message_history.append(create_chat_message("user", user_input))
             full_message_history.append(
-                create_chat_message(
-                    "user", user_input))
-            full_message_history.append(
-                create_chat_message(
-                    "assistant", assistant_reply))
+                create_chat_message("assistant", assistant_reply)
+            )
 
             return assistant_reply
         except openai.error.RateLimitError:

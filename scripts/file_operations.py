@@ -1,5 +1,6 @@
 import os
 import os.path
+from pathlib import Path
 
 # Set a dedicated folder for file I/O
 working_directory = "auto_gpt_workspace"
@@ -9,13 +10,11 @@ if not os.path.exists(working_directory):
 
 
 def safe_join(base, *paths):
-    new_path = os.path.join(base, *paths)
-    norm_new_path = os.path.normpath(new_path)
-
-    if os.path.commonprefix([base, norm_new_path]) != base:
+    root = Path(base).resolve()
+    resolved = root.joinpath(*paths).resolve()
+    if not resolved.is_relative_to(root):
         raise ValueError("Attempted to access outside of working directory.")
-
-    return norm_new_path
+    return str(resolved)
 
 
 def read_file(filename):

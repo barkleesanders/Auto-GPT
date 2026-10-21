@@ -1,0 +1,4 @@
+ruff==0.14.10
+pip-audit==2.10.1
+setuptools==83.0.0
+wheel==0.48.0

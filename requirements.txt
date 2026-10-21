@@ -1,13 +1,13 @@
-beautifulsoup4
+beautifulsoup4==4.15.0
 colorama==0.4.6
 openai==0.27.2
-playsound==1.3.0
-python-dotenv==1.2.2
-pyyaml==6.0
-readability-lxml==0.8.1
-requests
-tiktoken==0.3.3
-gTTS==2.3.1
-docker
-duckduckgo-search
-google-api-python-client #(https://developers.google.com/custom-search/v1/overview) 
+playsound3==3.3.2
+python-dotenv==1.2.4
+pyyaml==6.0.3
+readability-lxml==0.9
+requests==2.34.2
+tiktoken==0.14.0
+gTTS==2.5.4
+docker==7.2.0
+ddgs==9.16.0
+google-api-python-client==2.201.0

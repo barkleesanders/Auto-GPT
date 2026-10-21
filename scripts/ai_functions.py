@@ -3,9 +3,11 @@ import json
 from config import Config
 from call_ai_function import call_ai_function
 from json_parser import fix_and_parse_json
+
 cfg = Config()
 
 # Evaluating code
+
 
 def evaluate_code(code: str) -> List[str]:
     function_string = "def analyze_code(code: str) -> List[str]:"
@@ -13,11 +15,12 @@ def evaluate_code(code: str) -> List[str]:
     description_string = """Analyzes the given code and returns a list of suggestions for improvements."""
 
     result_string = call_ai_function(function_string, args, description_string)
-    
+
     return result_string
 
 
 # Improving code
+
 
 def improve_code(suggestions: List[str], code: str) -> str:
     function_string = (
@@ -42,5 +45,3 @@ def write_tests(code: str, focus: List[str]) -> str:
 
     result_string = call_ai_function(function_string, args, description_string)
     return result_string
-
-

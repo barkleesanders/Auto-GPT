@@ -1,23 +1,40 @@
-name: auto-format
-on: pull_request
+name: Python checks
+on:
+  pull_request:
+  push:
+    branches: [master]
+permissions:
+  contents: read
 jobs:
-  format:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install all declared runtime and check dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --only-binary=:all: -r requirements.txt -r requirements-ci.txt
+          python -m pip check
+      - name: Formatting and undefined-name checks
+        run: |
+          ruff format --check scripts tests
+          ruff check scripts tests --select F821,F822,F823,E9
+      - name: Offline software tests
+        run: python -m unittest discover -s tests -p '*test*.py' -v
+        env:
+          PYTHON_DOTENV_DISABLED: '1'
+      - name: Audit every installed package
+        run: pip-audit --strict
+  image-build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout PR branch
-        uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: autopep8
-        uses: peter-evans/autopep8@v1
-        with:
-          args: --exit-code --recursive --in-place --aggressive --aggressive .
-      - name: Check for modified files
-        id: git-check
-        run: echo "modified=$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)" >> $GITHUB_ENV
-      - name: Push changes
-        if: steps.git-check.outputs.modified == 'true'
-        run: |
-          git config --global user.name 'Torantulino'
-          git config --global user.email 'toran.richards@gmail.com'
-          git remote set
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Build image without running the autonomous agent
+        run: docker build --tag autogpt-software-check .

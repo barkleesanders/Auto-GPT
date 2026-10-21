@@ -1,115 +1,71 @@
-import unittest
+"""Original parser scenarios with provider responses supplied by fixtures."""
+
+import json
 import os
+from pathlib import Path
 import sys
-# Probably a better way:
-sys.path.append(os.path.abspath('../scripts'))
-from json_parser import fix_and_parse_json
+import unittest
+from unittest.mock import patch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+os.environ["PYTHON_DOTENV_DISABLED"] = "1"
+import json_parser
+
 
 class TestParseJson(unittest.TestCase):
     def test_valid_json(self):
-        # Test that a valid JSON string is parsed correctly
-        json_str = '{"name": "John", "age": 30, "city": "New York"}'
-        obj = fix_and_parse_json(json_str)
-        self.assertEqual(obj, {"name": "John", "age": 30, "city": "New York"})
-    
-    def test_invalid_json_minor(self):
-        # Test that an invalid JSON string can be fixed with gpt
-        json_str = '{"name": "John", "age": 30, "city": "New York",}'
-        self.assertEqual(fix_and_parse_json(json_str, try_to_fix_with_gpt=False), {"name": "John", "age": 30, "city": "New York"})
-    
-    def test_invalid_json_major_with_gpt(self):
-        # Test that an invalid JSON string raises an error when try_to_fix_with_gpt is False
-        json_str = 'BEGIN: "name": "John" - "age": 30 - "city": "New York" :END'
-        self.assertEqual(fix_and_parse_json(json_str, try_to_fix_with_gpt=True), {"name": "John", "age": 30, "city": "New York"})
+        self.assertEqual(
+            json_parser.fix_and_parse_json('{"name":"John"}'), {"name": "John"}
+        )
 
-    def test_invalid_json_major_without_gpt(self):
-        # Test that a REALLY invalid JSON string raises an error when try_to_fix_with_gpt is False
-        json_str = 'BEGIN: "name": "John" - "age": 30 - "city": "New York" :END'
-        # Assert that this raises an exception:
-        with self.assertRaises(Exception):
-            fix_and_parse_json(json_str, try_to_fix_with_gpt=False)
+    def test_minor_error_requires_enabled_repair(self):
+        with self.assertRaises(ValueError):
+            json_parser.fix_and_parse_json('{"name":"John",}', False)
 
-    def test_invalid_json_leading_sentence_with_gpt(self):
-        # Test that a REALLY invalid JSON string raises an error when try_to_fix_with_gpt is False
-        json_str = """I suggest we start by browsing the repository to find any issues that we can fix.
+    def test_minor_error_with_provider_fixture(self):
+        with patch.object(
+            json_parser, "call_ai_function", return_value='{"name":"John"}'
+        ):
+            self.assertEqual(
+                json_parser.fix_and_parse_json('{"name":"John",}'), {"name": "John"}
+            )
 
-{
-    "command": {
-        "name": "browse_website",
-        "args":{
-            "url": "https://github.com/Torantulino/Auto-GPT"
+    def test_major_error_with_provider_fixture(self):
+        with patch.object(
+            json_parser, "call_ai_function", return_value='{"name":"John"}'
+        ):
+            self.assertEqual(
+                json_parser.fix_and_parse_json("BEGIN: name-John :END"),
+                {"name": "John"},
+            )
+
+    def test_major_error_without_provider(self):
+        with self.assertRaises(ValueError):
+            json_parser.fix_and_parse_json("BEGIN: name-John :END", False)
+
+    def test_leading_sentence(self):
+        expected = {
+            "command": {
+                "name": "browse_website",
+                "args": {"url": "https://example.com"},
+            }
         }
-    },
-    "thoughts":
-    {
-        "text": "I suggest we start browsing the repository to find any issues that we can fix.",
-        "reasoning": "Browsing the repository will give us an idea of the current state of the codebase and identify any issues that we can address to improve the repo.",
-        "plan": "- Look through the repository to find any issues.\n- Investigate any issues to determine what needs to be fixed\n- Identify possible solutions to fix the issues\n- Open Pull Requests with fixes",
-        "criticism": "I should be careful while browsing so as not to accidentally introduce any new bugs or issues.",
-        "speak": "I will start browsing the repository to find any issues we can fix."
-    }
-}"""
-        good_obj = {
-          "command": {
-              "name": "browse_website",
-              "args":{
-                  "url": "https://github.com/Torantulino/Auto-GPT"
-              }
-          },
-          "thoughts":
-          {
-              "text": "I suggest we start browsing the repository to find any issues that we can fix.",
-              "reasoning": "Browsing the repository will give us an idea of the current state of the codebase and identify any issues that we can address to improve the repo.",
-              "plan": "- Look through the repository to find any issues.\n- Investigate any issues to determine what needs to be fixed\n- Identify possible solutions to fix the issues\n- Open Pull Requests with fixes",
-              "criticism": "I should be careful while browsing so as not to accidentally introduce any new bugs or issues.",
-              "speak": "I will start browsing the repository to find any issues we can fix."
-          }
-      }
-        # Assert that this raises an exception:
-        self.assertEqual(fix_and_parse_json(json_str, try_to_fix_with_gpt=False), good_obj)
+        with patch.object(
+            json_parser,
+            "call_ai_function",
+            side_effect=AssertionError("provider called"),
+        ):
+            self.assertEqual(
+                json_parser.fix_and_parse_json(
+                    "Leading sentence " + json.dumps(expected), False
+                ),
+                expected,
+            )
+
+    def test_failed_provider_repair_returns_original_text(self):
+        with patch.object(json_parser, "call_ai_function", return_value="invalid"):
+            self.assertEqual(json_parser.fix_and_parse_json("not json"), "not json")
 
 
-
-    def test_invalid_json_leading_sentence_with_gpt(self):
-        # Test that a REALLY invalid JSON string raises an error when try_to_fix_with_gpt is False
-        json_str = """I will first need to browse the repository (https://github.com/Torantulino/Auto-GPT) and identify any potential bugs that need fixing. I will use the "browse_website" command for this.
-
-{
-    "command": {
-        "name": "browse_website",
-        "args":{
-            "url": "https://github.com/Torantulino/Auto-GPT"
-        }
-    },
-    "thoughts":
-    {
-        "text": "Browsing the repository to identify potential bugs",
-        "reasoning": "Before fixing bugs, I need to identify what needs fixing. I will use the 'browse_website' command to analyze the repository.",
-        "plan": "- Analyze the repository for potential bugs and areas of improvement",
-        "criticism": "I need to ensure I am thorough and pay attention to detail while browsing the repository.",
-        "speak": "I am browsing the repository to identify potential bugs."
-    }
-}"""
-        good_obj = {
-    "command": {
-        "name": "browse_website",
-        "args":{
-            "url": "https://github.com/Torantulino/Auto-GPT"
-        }
-    },
-    "thoughts":
-    {
-        "text": "Browsing the repository to identify potential bugs",
-        "reasoning": "Before fixing bugs, I need to identify what needs fixing. I will use the 'browse_website' command to analyze the repository.",
-        "plan": "- Analyze the repository for potential bugs and areas of improvement",
-        "criticism": "I need to ensure I am thorough and pay attention to detail while browsing the repository.",
-        "speak": "I am browsing the repository to identify potential bugs."
-    }
-}
-        # Assert that this raises an exception:
-        self.assertEqual(fix_and_parse_json(json_str, try_to_fix_with_gpt=False), good_obj)
-
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
