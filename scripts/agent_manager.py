@@ -6,11 +6,14 @@ agents = {}  # key, (task, full_message_history, model)
 # Create new GPT agent
 # TODO: Centralise use of create_chat_completion() to globally enforce token limit
 
+
 def create_agent(task, prompt, model):
     global next_key
     global agents
 
-    messages = [{"role": "user", "content": prompt}, ]
+    messages = [
+        {"role": "user", "content": prompt},
+    ]
 
     # Start GTP3 instance
     agent_reply = create_chat_completion(

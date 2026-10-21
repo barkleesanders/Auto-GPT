@@ -5,6 +5,7 @@ from llm_utils import create_chat_completion
 
 cfg = Config()
 
+
 def scrape_text(url):
     response = requests.get(url)
 
@@ -20,15 +21,15 @@ def scrape_text(url):
     text = soup.get_text()
     lines = (line.strip() for line in text.splitlines())
     chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-    text = '\n'.join(chunk for chunk in chunks if chunk)
+    text = "\n".join(chunk for chunk in chunks if chunk)
 
     return text
 
 
 def extract_hyperlinks(soup):
     hyperlinks = []
-    for link in soup.find_all('a', href=True):
-        hyperlinks.append((link.text, link['href']))
+    for link in soup.find_all("a", href=True):
+        hyperlinks.append((link.text, link["href"]))
     return hyperlinks
 
 
@@ -77,8 +78,9 @@ def split_text(text, max_length=8192):
 def create_message(chunk, question):
     return {
         "role": "user",
-        "content": f"\"\"\"{chunk}\"\"\" Using the above text, please answer the following question: \"{question}\" -- if the question cannot be answered using the text, please summarize the text."
+        "content": f'"""{chunk}""" Using the above text, please answer the following question: "{question}" -- if the question cannot be answered using the text, please summarize the text.',
     }
+
 
 def summarize_text(text, question):
     if not text:

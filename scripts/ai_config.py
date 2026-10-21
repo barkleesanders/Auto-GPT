@@ -27,7 +27,11 @@ class AIConfig:
         return cls(ai_name, ai_role, ai_goals)
 
     def save(self, config_file=SAVE_FILE):
-        config = {"ai_name": self.ai_name, "ai_role": self.ai_role, "ai_goals": self.ai_goals}
+        config = {
+            "ai_name": self.ai_name,
+            "ai_role": self.ai_role,
+            "ai_goals": self.ai_goals,
+        }
         with open(config_file, "w") as file:
             yaml.dump(config, file)
 
@@ -35,9 +39,11 @@ class AIConfig:
         prompt_start = """Your decisions must always be made independently without seeking user assistance. Play to your strengths as an LLM and pursue simple strategies with no legal complications."""
 
         # Construct full prompt
-        full_prompt = f"You are {self.ai_name}, {self.ai_role}\n{prompt_start}\n\nGOALS:\n\n"
+        full_prompt = (
+            f"You are {self.ai_name}, {self.ai_role}\n{prompt_start}\n\nGOALS:\n\n"
+        )
         for i, goal in enumerate(self.ai_goals):
-            full_prompt += f"{i+1}. {goal}\n"
+            full_prompt += f"{i + 1}. {goal}\n"
 
         full_prompt += f"\n\n{data.load_prompt()}"
         return full_prompt
