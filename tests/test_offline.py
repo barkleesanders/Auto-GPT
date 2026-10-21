@@ -9,6 +9,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +19,53 @@ os.environ["PYTHON_DOTENV_DISABLED"] = "1"
 
 
 class OfflineTests(unittest.TestCase):
+    def test_real_openai_sdk_against_loopback_http_fixture(self):
+        import llm_utils
+        import openai
+
+        requests_seen = []
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_POST(self):
+                body = self.rfile.read(int(self.headers["Content-Length"]))
+                requests_seen.append((self.path, json.loads(body)))
+                payload = json.dumps(
+                    {"choices": [{"message": {"content": "fixture output"}}]}
+                ).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
+
+            def log_message(self, *args):
+                pass
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = Thread(target=server.serve_forever)
+        thread.start()
+        try:
+            with (
+                patch.object(
+                    openai, "api_base", f"http://127.0.0.1:{server.server_port}/v1"
+                ),
+                patch.object(openai, "api_key", "fixture-only"),
+            ):
+                messages = [{"role": "user", "content": "fixture"}]
+                self.assertEqual(
+                    llm_utils.create_chat_completion(
+                        messages, model="fixture-model", max_tokens=16
+                    ),
+                    "fixture output",
+                )
+            self.assertEqual(requests_seen[0][0], "/v1/chat/completions")
+            self.assertEqual(requests_seen[0][1]["messages"], messages)
+            self.assertEqual(requests_seen[0][1]["model"], "fixture-model")
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
     def test_file_operations_stay_inside_temporary_workspace(self):
         import file_operations
 
